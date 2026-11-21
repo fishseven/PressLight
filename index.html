@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#F4F5F1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>轻压记 · PressLight</title>
+  <meta name="description" content="PressLight 轻压记：个人自用的血压、饮食、睡眠与体重记录工具，数据保存在本机。" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='17' fill='%236e9e97'/%3E%3Cpath d='M14 34h9l4-10 8 22 5-12h8' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M2.5 12h4l2-5.2 4.2 10.4 2.4-6.1 1.4 1.9h5"/></symbol>
+    <symbol id="i-bowl" viewBox="0 0 24 24"><path d="M4 11h16a8 8 0 0 1-16 0Z"/><path d="M8.5 20h7"/><path d="M9 7.5c0-1 .8-1.4 1.2-2.2M14 7.5c0-1 .8-1.4 1.2-2.2"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.2c3.2 3.7 5.6 6.6 5.6 9.4a5.6 5.6 0 0 1-11.2 0c0-2.8 2.4-5.7 5.6-9.4Z"/><path d="M9.4 13.4a2.7 2.7 0 0 0 2.4 2.7"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><circle cx="15.2" cy="5.2" r="1.9"/><path d="M13.2 8.6 10.4 12l3.1 2 1.1 5.4"/><path d="M10.4 12 6 13.4"/><path d="m13.5 14 4 2.4"/><path d="m10.1 18.6 2.2-4.2"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.6A8.4 8.4 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"/><path d="M16.7 4.4v2.4M15.5 5.6h2.4"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5.4"/><path d="M8.2 13.2a4.2 4.2 0 0 1 7.6 0"/><path d="m12 13 2.2-2.2"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M5 8.5h10.5v4.7a5.2 5.2 0 0 1-5.2 5.2h-.1A5.2 5.2 0 0 1 5 13.2V8.5Z"/><path d="M15.5 9.6h1.6a2.2 2.2 0 0 1 0 4.4h-1.6"/><path d="M7.5 19.6h9"/><path d="M8.6 5.2c0-.9.7-1.2 1-1.9M12.2 5.2c0-.9.7-1.2 1-1.9"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m18.5 16 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m7.5 14.5 3.4-4 3 2.5 4.6-5.5"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="m14.8 9.2-1.6 4-4 1.6 1.6-4 4-1.6Z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M18.5 5.5l-1.4 1.4M6.9 17.1l-1.4 1.4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.8 11.2A2 2 0 0 0 9.3 20h5.4a2 2 0 0 0 2-1.8L17.5 7"/><path d="M10.2 11v5M13.8 11v5"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="m4 20 4.2-1 10-10a2.3 2.3 0 0 0-3.2-3.2l-10 10L4 20Z"/><path d="m13.8 7.4 2.8 2.8"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 16.5v2A2 2 0 0 0 6.5 20h11a2 2 0 0 0 2-2v-2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5v-11M7.5 8.5 12 4l4.5 4.5"/><path d="M4.5 16.5v2A2 2 0 0 0 6.5 20h11a2 2 0 0 0 2-2v-2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8l-4.5-4.5Z"/><path d="M14 3.5V8h4.5M8.5 13h7M8.5 16.5h5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  </svg>
+
+  <div class="app" id="app">
+    <main class="viewport" id="viewport">
+      <!-- 今日 -->
+      <section class="page is-active" data-page="today" id="page-today">
+        <header class="hero">
+          <div class="brand-row">
+            <div class="brand">
+              <span class="brand-dot"></span>
+              <span class="brand-en">PRESSLIGHT</span>
+              <span class="brand-cn">轻压记</span>
+            </div>
+            <button class="icon-btn" type="button" data-go="settings" aria-label="打开设置">
+              <svg class="icon"><use href="#i-gear"/></svg>
+            </button>
+          </div>
+          <div class="date-line">
+            <h1 id="today-date">11月21日</h1>
+            <span class="weekday" id="today-weekday">周六</span>
+          </div>
+          <button class="goal-pill" type="button" data-go="settings">
+            <span>目标血压 <b id="goal-bp">130/80</b></span>
+            <span class="pill-sep"></span>
+            <span>体重 <b id="goal-weight">65 kg</b></span>
+          </button>
+        </header>
+
+        <div class="summary" id="today-summary"></div>
+        <div class="card-grid" id="today-cards"></div>
+        <div id="today-alerts"></div>
+        <p class="disclaimer">数据只保存在本机浏览器 · 本工具不是医疗器械</p>
+      </section>
+
+      <!-- 趋势 -->
+      <section class="page" data-page="trends" id="page-trends">
+        <header class="page-head">
+          <div class="page-kicker">TRENDS</div>
+          <h1>趋势</h1>
+          <p>看周均，不看单日。样本不足时先继续记录。</p>
+        </header>
+        <div class="toolbar">
+          <div class="seg seg--range" id="range-seg" role="group" aria-label="时间范围">
+            <button type="button" data-range="7" class="is-active">近 7 天</button>
+            <button type="button" data-range="30">近 30 天</button>
+          </div>
+        </div>
+        <section class="card chart-card">
+          <div class="chart-top">
+            <div class="seg seg--metric" id="metric-seg" role="group" aria-label="指标">
+              <button type="button" data-metric="bp" class="is-active">血压</button>
+              <button type="button" data-metric="weight">体重</button>
+              <button type="button" data-metric="waist">腰围</button>
+            </div>
+            <button class="mini-toggle" id="bp-subtoggle" type="button">收缩压</button>
+          </div>
+          <div class="legend" id="chart-legend"></div>
+          <div class="chart-wrap">
+            <canvas id="trend-chart" aria-label="趋势折线图"></canvas>
+            <div class="chart-empty" id="chart-empty" hidden>还没有足够数据，先记一次吧</div>
+          </div>
+          <div class="stat-strip" id="chart-stats"></div>
+        </section>
+        <section class="card report-card">
+          <div class="card-heading">
+            <div>
+              <h2>本周报告</h2>
+              <p class="muted" id="report-range">—</p>
+            </div>
+            <span class="soft-tag">自动汇总</span>
+          </div>
+          <div class="report-grid" id="report-grid"></div>
+        </section>
+        <p class="disclaimer">估算值仅用于观察趋势，不作精确营养或医疗计算。</p>
+      </section>
+
+      <!-- 分析 -->
+      <section class="page" data-page="analysis" id="page-analysis">
+        <header class="page-head">
+          <div class="page-kicker">INSIGHTS</div>
+          <h1>分析</h1>
+          <p>只呈现平均差，不代表因果。少于 7 天样本不结论。</p>
+        </header>
+        <div class="analysis-list" id="analysis-list"></div>
+        <div class="notice">
+          <svg class="icon"><use href="#i-info"/></svg>
+          <p>目标血压 130/80 请以医生确认值为准。出现持续偏高或头晕、胸闷等不适时，请及时就医评估。</p>
+        </div>
+        <p class="disclaimer">分析结果来自你的本地记录，仅供自我回顾。</p>
+      </section>
+
+      <!-- 设置 -->
+      <section class="page" data-page="settings" id="page-settings">
+        <header class="page-head">
+          <div class="page-kicker">SETTINGS</div>
+          <h1>设置</h1>
+          <p>目标、提醒与本地数据管理。</p>
+        </header>
+        <div id="settings-body"></div>
+        <p class="disclaimer">PressLight · 轻压记 v0.1<br/>个人自用记录工具，不提供诊断、治疗或用药建议。</p>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="主导航">
+      <button type="button" class="tab is-active" data-tab="today">
+        <span class="tab-ico"><svg class="icon"><use href="#i-sun"/></svg></span>
+        <span>今日</span>
+      </button>
+      <button type="button" class="tab" data-tab="trends">
+        <span class="tab-ico"><svg class="icon"><use href="#i-chart"/></svg></span>
+        <span>趋势</span>
+      </button>
+      <button type="button" class="tab tab-add" id="fab" aria-label="快速记录">
+        <span class="tab-add-btn"><svg class="icon"><use href="#i-plus"/></svg></span>
+        <span>记录</span>
+      </button>
+      <button type="button" class="tab" data-tab="analysis">
+        <span class="tab-ico"><svg class="icon"><use href="#i-compass"/></svg></span>
+        <span>分析</span>
+      </button>
+      <button type="button" class="tab" data-tab="settings">
+        <span class="tab-ico"><svg class="icon"><use href="#i-gear"/></svg></span>
+        <span>设置</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="scrim" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <header class="sheet-head">
+        <div>
+          <h2 id="sheet-title">记录</h2>
+          <p id="sheet-sub" class="muted"></p>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="关闭">
+          <svg class="icon"><use href="#i-x"/></svg>
+        </button>
+      </header>
+      <div class="sheet-body" id="sheet-body"></div>
+      <footer class="sheet-foot" id="sheet-foot" hidden></footer>
+    </div>
+  </div>
+
+  <div class="welcome" id="welcome" hidden>
+    <div class="welcome-inner">
+      <div class="welcome-mark"><span></span><span></span><span></span></div>
+      <p class="welcome-kicker">PRESSLIGHT</p>
+      <h1>轻压记</h1>
+      <p class="welcome-text">把血压、饮食、睡眠和小小运动，轻轻记下来。<br/>每天几分钟，慢慢看见自己的趋势。</p>
+      <div class="welcome-points">
+        <span>本地保存</span><span>无需注册</span><span>不评价、不诊断</span>
+      </div>
+      <button class="btn btn--primary" type="button" id="start-demo">载入示例数据看看</button>
+      <button class="btn btn--ghost" type="button" id="start-blank">从空白开始记录</button>
+      <p class="welcome-note">示例数据仅用于预览，可在设置中一键清空。</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
