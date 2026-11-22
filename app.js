@@ -129,27 +129,11 @@
 
   const SODIUM_LABEL = { high: '高钠', mid: '中钠', low: '低钠' };
   const POTASSIUM_LABEL = { high: '高钾', mid: '一般', low: '低钾' };
-  const TYPE_LABEL = { homemade: '自制', processed: '加工', fruit: '水果', drink: '饮料', soup: '汤类' };
 
   const CONDITIONS = ['服药前', '排尿后', '运动后30分钟内', '失眠后', '情绪紧张', '咖啡后2小时内', '正常'];
   const SYMPTOMS = ['无', '头晕', '头痛', '胸闷'];
   const SODIUM_DRINKS = ['汤', '电解质水', '风味水', '罐装饮料'];
   const COFFEE_TYPES = ['黑咖啡', '加奶', '加糖'];
-
-  const THEMES = {
-    bp: ['#e6efec', '#4f827b'],
-    diet: ['#f5ece0', '#96764f'],
-    water: ['#e6eef1', '#5d7f8a'],
-    exercise: ['#e7eee1', '#687f5a'],
-    sleep: ['#eae8ef', '#746e88'],
-    weight: ['#f3e8e5', '#9a6e66'],
-    mood: ['#f4eddf', '#987d55'],
-  };
-
-  const themeStyle = (name) => {
-    const [soft, ink] = THEMES[name] || ['#f0f2ec', '#6b7470'];
-    return `--x-soft:${soft};--x-ink:${ink}`;
-  };
 
   /* ------------------------------------------------------------------ *
    * state
@@ -551,20 +535,6 @@
    * today
    * ------------------------------------------------------------------ */
 
-  const cardFlag = (state, text) => {
-    const cls = state === true ? 'is-done' : (state === 'partial' ? 'is-partial' : '');
-    return `<span class="card-flag ${cls}">${text}</span>`;
-  };
-
-  const bpItem = (label, bp) => `
-    <div class="bp-item ${bp ? '' : 'is-empty'}">
-      <span class="bp-label">${label}${bp && bp.time ? ` · ${esc(bp.time)}` : ''}</span>
-      <b>${bp ? `${bp.systolic}/${bp.diastolic}` : '—/—'}<span class="unit">mmHg</span></b>
-      <small>${bp
-        ? (bp.heartRate ? `心率 ${bp.heartRate} 次/分` : '已记录')
-        : (label === '晨起' ? '还没有记录' : '睡前再测一次')}</small>
-    </div>`;
-
   const renderToday = () => {
     const today = TODAY();
     const summary = daySummary(today);
@@ -574,9 +544,10 @@
     $('#today-weekday').textContent = weekday(today);
     $('#goal-bp').textContent = `${settings.targetSys}/${settings.targetDia}`;
     $('#goal-weight').textContent = `${settings.targetWeight} kg`;
+    $('#demo-tag').hidden = !state.demo;
 
     const weight = weightLatest();
-    const weightRecent = weight && diffDays(today, weight.date) <= 7;
+    const weightRecent = Boolean(weight && diffDays(today, weight.date) <= 7);
     const waist = latestWaist();
     const doneItems = [
       Boolean(summary.bpMorning),
@@ -584,163 +555,127 @@
       Boolean(summary.water && summary.water.totalMl > 0),
       summary.exerciseMin > 0,
       Boolean(summary.sleep),
-      Boolean(weightRecent),
+      weightRecent,
     ];
     const doneCount = doneItems.filter(Boolean).length;
+    $('#today-score').innerHTML = `<b>${doneCount}</b>/6 已记`;
 
-    let summaryTitle = '今天还没有记录';
-    let summaryText = '先记一次晨起血压吧，慢慢来。';
-    if (doneCount > 0 && doneCount < 6) {
-      summaryTitle = `今日已记 ${doneCount} / 6 项`;
-      summaryText = '按自己的节奏来，不必一次记完。';
-    } else if (doneCount === 6) {
-      summaryTitle = '今天的记录齐了';
-      summaryText = '看一眼趋势，早点休息。';
-    }
-    if (state.demo) summaryText = `示例数据 · ${summaryText}`;
-
-    const circumference = 2 * Math.PI * 22;
-    $('#today-summary').innerHTML = `
-      <div class="summary-copy">
-        <h2>${summaryTitle}</h2>
-        <p>${summaryText}</p>
-      </div>
-      <div class="summary-ring" aria-label="今日记录完成度 ${doneCount} / 6">
-        <svg viewBox="0 0 52 52">
-          <circle class="ring-bg" cx="26" cy="26" r="22"></circle>
-          <circle class="ring-fg" cx="26" cy="26" r="22"
-            style="stroke-dasharray:${circumference.toFixed(2)};stroke-dashoffset:${(circumference * (1 - doneCount / 6)).toFixed(2)}"></circle>
-        </svg>
-        <span>${doneCount}/6</span>
-      </div>`;
-
-    const mealDone = (type) => summary.meals.some((m) => m.mealType === type);
-    const fruitDone = summary.foodItems.some((item) => item.food.type === 'fruit');
-    const coffeeDone = summary.caffeine.length > 0;
     const level = summary.sodiumLevel;
-    const levelText = level ? `${SODIUM_LABEL[level]}日` : '待记录';
+    const levelText = level ? `${SODIUM_LABEL[level]}日` : null;
     const totalWater = summary.water ? summary.water.totalMl || 0 : 0;
     const sodiumDrinks = summary.water ? summary.water.sodiumDrinkTypes.length : 0;
-    const sleepDur = summary.sleep ? formatDuration(summary.sleepMins) : null;
-    const weightDiff = weight ? round1(weight.weightKg - settings.targetWeight) : null;
-    const startWeight = firstWeight();
-    const weightProgress = (startWeight && weight && startWeight.weightKg > settings.targetWeight)
-      ? clamp((startWeight.weightKg - weight.weightKg) / (startWeight.weightKg - settings.targetWeight) * 100, 0, 100)
-      : (weight && weight.weightKg <= settings.targetWeight ? 100 : 0);
+    const sleep = summary.sleep;
+    const sleepDur = sleep ? formatDuration(summary.sleepMins) : null;
     const exerciseMinutes = Math.round(summary.exerciseMin);
     const exerciseKcal = Math.round(summary.exerciseKcal);
     const exerciseIntensity = summary.exercise.length
       ? summary.exercise[summary.exercise.length - 1].intensity
       : '中等';
+    const weightDiff = weight ? round1(weight.weightKg - settings.targetWeight) : null;
+    const mealTypes = summary.meals
+      .map((m) => MEAL_LABEL[m.mealType])
+      .filter((v, i, arr) => v && arr.indexOf(v) === i);
+    const mealSub = summary.meals.length
+      ? [
+          mealTypes.join('、'),
+          summary.coffeeCups ? `咖啡 ${summary.coffeeCups} 杯` : '',
+          summary.highSodium ? `高钠 ${summary.highSodium} 个` : '',
+        ].filter(Boolean).join(' · ')
+      : '早、午、晚都还没记';
+    const waterSub = totalWater
+      ? `含钠饮料 ${sodiumDrinks} 次${summary.water.nightUrineCount ? ` · 夜尿 ${summary.water.nightUrineCount} 次` : ''}`
+      : '点一下，从一杯水开始';
+    const exerciseSub = exerciseMinutes
+      ? `约 ${exerciseKcal} kcal · 强度 ${exerciseIntensity}`
+      : '慢跑 30 分钟就很好';
+    const sleepSub = sleep
+      ? `${sleep.sleepTime} – ${sleep.wakeTime} · 质量 ${sleep.quality1to5}/5`
+      : '昨晚睡得怎么样？';
+    const weightSub = weight
+      ? [
+          weightRecent ? '' : '该记了',
+          waist ? `腰围 ${waist.waistCm.toFixed(1)} cm` : '',
+          weightDiff > 0 ? `距目标 ${fmt1(weightDiff)} kg` : '已达目标',
+        ].filter(Boolean).join(' · ')
+      : `目标 ${settings.targetWeight} kg`;
+
+    const bpStatus = summary.bpMorning
+      ? (summary.bpNight ? '早晚已记' : '睡前未记')
+      : '晨起未记';
+    const bpStatusClass = summary.bpMorning && summary.bpNight
+      ? 'is-done'
+      : (summary.bpMorning ? 'is-partial' : 'is-missing');
+
+    const bpReading = (label, bp, placeholder) => `
+      <div class="bp-reading ${bp ? '' : 'is-empty'}">
+        <span class="bp-when">${label}</span>
+        <b class="bp-number">${bp ? `${bp.systolic}/${bp.diastolic}` : '未测'}</b>
+        <small>${bp
+          ? `${bp.time}${bp.heartRate ? ` · 心率 ${bp.heartRate}` : ''}`
+          : placeholder}</small>
+      </div>`;
+
+    const rows = [
+      {
+        type: 'meal', icon: 'bowl', title: '饮食',
+        value: levelText || '待记', sub: mealSub,
+        done: summary.meals.length > 0,
+      },
+      {
+        type: 'water', icon: 'drop', title: '饮水',
+        value: totalWater ? `${totalWater} ml` : '待记', sub: waterSub,
+        done: totalWater > 0,
+      },
+      {
+        type: 'exercise', icon: 'run', title: '运动',
+        value: exerciseMinutes ? `${exerciseMinutes} 分钟` : '待记', sub: exerciseSub,
+        done: exerciseMinutes > 0,
+      },
+      {
+        type: 'sleep', icon: 'moon', title: '睡眠',
+        value: sleepDur ? sleepDur.short : '待记', sub: sleepSub,
+        done: Boolean(sleep),
+      },
+      {
+        type: 'weight', icon: 'scale', title: '体重',
+        value: weight ? `${weight.weightKg.toFixed(1)} kg` : '待记', sub: weightSub,
+        done: weightRecent,
+      },
+    ];
 
     $('#today-cards').innerHTML = `
-      <button class="card card--wide" type="button" data-record="bp" style="${themeStyle('bp')}" aria-label="记录血压">
-        <div class="card-top">
-          <span class="card-ico">${icon('pulse')}</span>
-          <span class="card-title">血压</span>
-          ${cardFlag(
-            !summary.bpMorning ? false : (summary.bpNight ? true : 'partial'),
-            summary.bpMorning ? (summary.bpNight ? '早晚已记' : '睡前未记') : '晨起未记'
-          )}
+      <button class="bp-panel" type="button" data-record="bp" aria-label="记录血压">
+        <div class="bp-panel-head">
+          <span class="panel-label">${icon('pulse')} 血压</span>
+          <span class="panel-status ${bpStatusClass}">${bpStatus}</span>
         </div>
-        <div class="card-body">
-          <div class="bp-pair">
-            ${bpItem('晨起', summary.bpMorning)}
-            ${bpItem('睡前', summary.bpNight)}
-          </div>
-          <div class="bp-foot">
-            <span>目标 ${settings.targetSys}/${settings.targetDia}</span>
-            <span>·</span>
-            <span>静坐 5 分钟后测</span>
-          </div>
+        <div class="bp-readings">
+          ${bpReading('晨起', summary.bpMorning, '还没有记录')}
+          ${bpReading('睡前', summary.bpNight, '睡前再测一次')}
         </div>
-        <span class="card-cta">记录血压 ${icon('chevron')}</span>
+        <div class="bp-panel-foot">
+          <span>目标 ${settings.targetSys}/${settings.targetDia} mmHg</span>
+          <span class="panel-cta">记录血压 ${icon('chevron')}</span>
+        </div>
       </button>
 
-      <button class="card card--wide" type="button" data-record="meal" style="${themeStyle('diet')}" aria-label="记录饮食">
-        <div class="card-top">
-          <span class="card-ico">${icon('bowl')}</span>
-          <span class="card-title">饮食</span>
-          ${cardFlag(summary.meals.length > 0, summary.meals.length ? `已记 ${summary.meals.length} 餐` : '未记')}
-        </div>
-        <div class="card-body">
-          <div class="meal-chips">
-            <span class="meal-chip ${mealDone('breakfast') ? 'is-done' : ''}">早餐</span>
-            <span class="meal-chip ${mealDone('lunch') ? 'is-done' : ''}">午餐</span>
-            <span class="meal-chip ${mealDone('dinner') ? 'is-done' : ''}">晚餐</span>
-            <span class="meal-chip ${fruitDone ? 'is-done' : ''}">水果</span>
-            <span class="meal-chip ${coffeeDone ? 'is-done' : ''}">咖啡</span>
-          </div>
-          <div class="sodium-line">
-            <span class="sodium-pill ${level === 'high' ? 'is-high' : ''}">${levelText}</span>
-            <span>高钠食物 ${summary.highSodium} 个</span>
-            ${summary.coffeeCups ? `<span>· 咖啡 ${summary.coffeeCups} 杯</span>` : ''}
-          </div>
-        </div>
-        <span class="card-cta">记一餐 ${icon('chevron')}</span>
-      </button>
+      <div class="section-head">
+        <h2>今日记录</h2>
+        <span class="${doneCount === 6 ? 'is-done' : ''}">${doneCount === 6 ? '今天记齐了' : `还差 ${6 - doneCount} 项`}</span>
+      </div>
 
-      <button class="card" type="button" data-record="water" style="${themeStyle('water')}" aria-label="记录饮水">
-        <div class="card-top">
-          <span class="card-ico">${icon('drop')}</span>
-          <span class="card-title">饮水</span>
-          ${cardFlag(totalWater > 0, totalWater > 0 ? '已记' : '未记')}
-        </div>
-        <div class="card-body">
-          <div class="big-value"><b>${totalWater}</b><span>ml</span></div>
-          <div class="meter" aria-hidden="true"><i style="width:${clamp(totalWater / 2000 * 100, 0, 100)}%"></i></div>
-          <div class="mini-meta">含钠饮料 ${sodiumDrinks} 次${summary.water && summary.water.nightUrineCount ? ` · 夜尿 ${summary.water.nightUrineCount} 次` : ''}</div>
-        </div>
-        <span class="card-cta">记饮水 ${icon('chevron')}</span>
-      </button>
-
-      <button class="card" type="button" data-record="exercise" style="${themeStyle('exercise')}" aria-label="记录慢跑">
-        <div class="card-top">
-          <span class="card-ico">${icon('run')}</span>
-          <span class="card-title">运动</span>
-          ${cardFlag(exerciseMinutes > 0, exerciseMinutes > 0 ? '已记' : '未记')}
-        </div>
-        <div class="card-body">
-          <div class="big-value"><b>${exerciseMinutes}</b><span>分钟</span></div>
-          <div class="mini-meta">${exerciseMinutes > 0 ? `约 ${exerciseKcal} kcal · 强度 ${esc(exerciseIntensity)}` : '慢跑 30 分钟就很好'}</div>
-        </div>
-        <span class="card-cta">记慢跑 ${icon('chevron')}</span>
-      </button>
-
-      <button class="card" type="button" data-record="sleep" style="${themeStyle('sleep')}" aria-label="记录睡眠">
-        <div class="card-top">
-          <span class="card-ico">${icon('moon')}</span>
-          <span class="card-title">睡眠</span>
-          ${cardFlag(Boolean(summary.sleep), summary.sleep ? '已记' : '未记')}
-        </div>
-        <div class="card-body">
-          <div class="compact-value"><b>${sleepDur ? sleepDur.short : '—'}</b>${sleepDur ? '' : '<span>小时</span>'}</div>
-          <div class="mini-meta">${summary.sleep
-            ? `${esc(summary.sleep.sleepTime)} – ${esc(summary.sleep.wakeTime)} · 质量 ${summary.sleep.quality1to5}/5`
-            : '昨晚睡得怎么样？'}</div>
-          ${summary.sleep ? `<div class="mini-meta">醒来 ${summary.sleep.wakeCount} 次 · 午睡 ${summary.sleep.napMin || 0} 分钟</div>` : ''}
-        </div>
-        <span class="card-cta">记睡眠 ${icon('chevron')}</span>
-      </button>
-
-      <button class="card" type="button" data-record="weight" style="${themeStyle('weight')}" aria-label="记录体重腰围">
-        <div class="card-top">
-          <span class="card-ico">${icon('scale')}</span>
-          <span class="card-title">体重</span>
-          ${cardFlag(Boolean(weightRecent), weightRecent ? '本周已记' : '待记录')}
-        </div>
-        <div class="card-body">
-          <div class="big-value"><b>${weight ? weight.weightKg.toFixed(1) : '—'}</b><span>kg</span></div>
-          <div class="progress-line">
-            <span class="meter" aria-hidden="true"><i style="width:${weightProgress}%"></i></span>
-            <span>${weight
-              ? (weightDiff > 0 ? `距目标 ${fmt1(weightDiff)} kg` : '已达目标')
-              : `目标 ${settings.targetWeight} kg`}</span>
-          </div>
-          <div class="mini-meta">${waist ? `腰围 ${waist.waistCm.toFixed(1)} cm` : '腰围每周记 1 次'}</div>
-        </div>
-        <span class="card-cta">记体重 ${icon('chevron')}</span>
-      </button>`;
+      <div class="today-list">
+        ${rows.map((row) => `
+          <button class="today-row ${row.done ? '' : 'is-missing'}" type="button" data-record="${row.type}" aria-label="${row.title}">
+            <span class="row-icon">${icon(row.icon)}</span>
+            <span class="row-main">
+              <b>${row.title}</b>
+              <small>${esc(row.sub)}</small>
+            </span>
+            <span class="row-value">${esc(row.value)}</span>
+            <span class="row-chevron">${icon('chevron')}</span>
+          </button>`).join('')}
+      </div>`;
 
     renderTodayAlerts(today, summary);
   };
@@ -899,16 +834,24 @@
           </label>
         </div>
         <div class="form-section">
-          <div class="form-label">测量条件 <small>可多选</small></div>
-          <div class="chips" id="bp-conditions">${chipHTML(CONDITIONS, conditions)}</div>
+          <button class="details-toggle" type="button" id="bp-more" aria-expanded="${editing}">
+            <span>补充信息 <small>测量条件、症状、备注</small></span>
+            <span class="details-arrow">${icon('chevron')}</span>
+          </button>
         </div>
-        <div class="form-section">
-          <div class="form-label">症状</div>
-          <div class="chips" id="bp-symptoms">${chipHTML(SYMPTOMS, symptoms)}</div>
-        </div>
-        <div class="form-section">
-          <div class="form-label">备注 <small>选填</small></div>
-          <input id="bp-note" class="input" type="text" maxlength="60" placeholder="比如：今天有点紧张" value="${esc(record?.note || '')}" />
+        <div class="extra-fields" id="bp-extra" ${editing ? '' : 'hidden'}>
+          <div class="form-section">
+            <div class="form-label">测量条件 <small>可多选</small></div>
+            <div class="chips" id="bp-conditions">${chipHTML(CONDITIONS, conditions)}</div>
+          </div>
+          <div class="form-section">
+            <div class="form-label">症状</div>
+            <div class="chips" id="bp-symptoms">${chipHTML(SYMPTOMS, symptoms)}</div>
+          </div>
+          <div class="form-section">
+            <div class="form-label">备注 <small>选填</small></div>
+            <input id="bp-note" class="input" type="text" maxlength="60" placeholder="比如：今天有点紧张" value="${esc(record?.note || '')}" />
+          </div>
         </div>`,
       footer: sheetSave(editing ? '保存修改' : '保存血压'),
       onMount: (root) => {
@@ -931,6 +874,16 @@
             }
           }
         });
+
+        const more = $('#bp-more', root);
+        const extra = $('#bp-extra', root);
+        more.onclick = () => {
+          const open = extra.hidden;
+          extra.hidden = !open;
+          more.setAttribute('aria-expanded', open ? 'true' : 'false');
+          more.classList.toggle('is-open', open);
+        };
+        more.classList.toggle('is-open', !extra.hidden);
       },
     });
 
@@ -1016,17 +969,20 @@
           </div>
         </div>
         <div class="form-section">
-          <div class="form-label">快捷组合 <small>点一下整组加入</small></div>
-          <div class="combo-scroll">${combos}</div>
-        </div>
-        <div class="form-section">
           <div class="form-label">已选 <small id="sel-count"></small></div>
           <div class="selected-box" id="selected-box"></div>
-          <div class="meal-summary" id="meal-summary"></div>
         </div>
         <div class="form-section">
-          <div class="form-label">或选择食物 <small>点按添加 / 再点取消</small></div>
-          <div class="food-grid" id="food-grid">${foodGrid}</div>
+          <div class="meal-tabs" id="meal-tabs" role="tablist">
+            <button type="button" data-pane="combo" class="is-active">快捷组合</button>
+            <button type="button" data-pane="foods">自选食物</button>
+          </div>
+          <div class="meal-pane" id="meal-pane-combo">
+            <div class="combo-grid">${combos}</div>
+          </div>
+          <div class="meal-pane" id="meal-pane-foods" hidden>
+            <div class="food-grid" id="food-grid">${foodGrid}</div>
+          </div>
         </div>`,
       footer: `<div class="sheet-summary" id="meal-foot-summary"><span>已选 0 份</span><b>高钠 0 个</b></div>${sheetSave(editing ? '保存修改' : '保存饮食')}`,
       onMount: (root) => {
@@ -1069,12 +1025,22 @@
           if (footSummary) {
             footSummary.innerHTML = `<span>已选 ${servings} 份 · ${MEAL_LABEL[mealType]}</span><b>${highCount ? `高钠 ${highCount} 个` : '清淡'}</b>`;
           }
-          $('#meal-summary', root).innerHTML = highCount >= 2
-            ? '<span>今天高钠食物偏多，晚些时候多喝水、少放盐。</span><strong>高钠日</strong>'
-            : `<span>${highCount ? '有 1 个高钠食物，下一餐清淡一点就好。' : '今天的食物看起来比较清淡。'}</span>`;
           $$('.food-btn', root).forEach((btn) => {
             btn.classList.toggle('is-on', items.some((item) => item.foodId === btn.dataset.food));
           });
+        };
+
+        const tabs = $('#meal-tabs', root);
+        const panes = {
+          combo: $('#meal-pane-combo', root),
+          foods: $('#meal-pane-foods', root),
+        };
+        tabs.onclick = (event) => {
+          const btn = event.target.closest('[data-pane]');
+          if (!btn) return;
+          const pane = btn.dataset.pane;
+          $$('button', tabs).forEach((el) => el.classList.toggle('is-active', el === btn));
+          Object.entries(panes).forEach(([key, el]) => { el.hidden = key !== pane; });
         };
 
         root.onclick = (event) => {
@@ -1720,7 +1686,7 @@
       sub: '今天想先记哪一项？',
       body: `<div class="quick-grid">${QUICK_ITEMS.map((item) => `
         <button class="quick-item" type="button" data-quick="${item.key}">
-          <span class="quick-ico" style="${themeStyle(item.theme)}">${icon(item.icon)}</span>
+          <span class="quick-ico">${icon(item.icon)}</span>
           <span>${item.label}</span>
         </button>`).join('')}</div>
         <div class="hint" style="margin-top:14px">${icon('info')}<span>所有记录只保存在本机浏览器，可以随时导出备份。</span></div>`,
@@ -1761,8 +1727,8 @@
       return {
         keys,
         series: [
-          { name: '晨压', color: '#5f938c', values: keys.map((key) => latestBP(key, 'morning')?.[field] ?? null) },
-          { name: '晚压', color: '#c9a67f', values: keys.map((key) => latestBP(key, 'night')?.[field] ?? null) },
+          { name: '晨压', color: '#2f6a5f', values: keys.map((key) => latestBP(key, 'morning')?.[field] ?? null) },
+          { name: '晚压', color: '#b08a67', values: keys.map((key) => latestBP(key, 'night')?.[field] ?? null) },
         ],
         goal: trendBPSub === 'sys' ? state.settings.targetSys : state.settings.targetDia,
         unit: 'mmHg',
@@ -1773,7 +1739,7 @@
       return {
         keys,
         series: [{
-          name: '体重', color: '#5f938c',
+          name: '体重', color: '#2f6a5f',
           values: keys.map((key) => weightFor(key)?.weightKg ?? null),
         }],
         goal: state.settings.targetWeight,
@@ -1784,7 +1750,7 @@
     return {
       keys,
       series: [{
-        name: '腰围', color: '#9a7f6a',
+        name: '腰围', color: '#9a6b52',
         values: keys.map((key) => weightFor(key)?.waistCm ?? null),
       }],
       goal: null,
@@ -1815,14 +1781,14 @@
     const legend = $('#chart-legend');
     if (trendMetric === 'bp') {
       legend.innerHTML = `
-        <span><i style="--c:#5f938c"></i>晨压</span>
-        <span><i style="--c:#c9a67f"></i>晚压</span>
-        <span><i class="line" style="--c:#cdb79c"></i>目标 ${trendBPSub === 'sys' ? state.settings.targetSys : state.settings.targetDia}</span>`;
+        <span><i style="--c:#2f6a5f"></i>晨压</span>
+        <span><i style="--c:#b08a67"></i>晚压</span>
+        <span><i class="line" style="--c:#c3ab8d"></i>目标 ${trendBPSub === 'sys' ? state.settings.targetSys : state.settings.targetDia}</span>`;
     } else if (trendMetric === 'weight') {
-      legend.innerHTML = `<span><i style="--c:#5f938c"></i>体重</span>
-        <span><i class="line" style="--c:#cdb79c"></i>目标 ${state.settings.targetWeight} kg</span>`;
+      legend.innerHTML = `<span><i style="--c:#2f6a5f"></i>体重</span>
+        <span><i class="line" style="--c:#c3ab8d"></i>目标 ${state.settings.targetWeight} kg</span>`;
     } else {
-      legend.innerHTML = '<span><i style="--c:#9a7f6a"></i>腰围</span>';
+      legend.innerHTML = '<span><i style="--c:#9a6b52"></i>腰围</span>';
     }
 
     renderTrendStats();
@@ -1975,7 +1941,7 @@
       ctx.save();
       ctx.beginPath();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = '#cdb79c';
+      ctx.strokeStyle = '#c3ab8d';
       ctx.lineWidth = 1.2;
       ctx.moveTo(plot.l, y);
       ctx.lineTo(W - plot.r, y);
@@ -2004,8 +1970,8 @@
         segments.forEach((segment) => {
           if (segment.length < 2) return;
           const gradient = ctx.createLinearGradient(0, plot.t, 0, plot.t + plotH);
-          gradient.addColorStop(0, 'rgba(110, 158, 151, 0.14)');
-          gradient.addColorStop(1, 'rgba(110, 158, 151, 0.01)');
+          gradient.addColorStop(0, 'rgba(47, 106, 95, 0.12)');
+          gradient.addColorStop(1, 'rgba(47, 106, 95, 0.01)');
           ctx.beginPath();
           ctx.moveTo(xFor(segment[0].i), yFor(segment[0].value));
           segment.slice(1).forEach((point) => ctx.lineTo(xFor(point.i), yFor(point.value)));
@@ -2105,7 +2071,7 @@
     return pairs;
   };
 
-  const compareCard = ({ tag, tagClass, title, desc, groupA, groupB, aLabel, bLabel, unit = 'mmHg', extra = '' }) => {
+  const compareCard = ({ tag, tagClass, title, groupA, groupB, aLabel, bLabel, unit = 'mmHg', extra = '' }) => {
     const a = groupA.filter((v) => v != null);
     const b = groupB.filter((v) => v != null);
     const total = a.length + b.length;
@@ -2142,7 +2108,6 @@
           <span class="tag ${tagClass || ''}">${tag}</span>
           <h3>${title}</h3>
         </div>
-        <p class="analysis-desc">${desc}</p>
         ${compare}
         ${extra}
       </section>`;
@@ -2170,25 +2135,25 @@
     const cards = [];
     cards.push(compareCard({
       tag: '饮食', tagClass: 'tag--sand', title: '高钠日 → 次日晨压',
-      desc: '比较高钠日和非高钠日的次日晨起收缩压平均值。',
+
       groupA: pick(sodiumPairs, 'high'), groupB: pick(sodiumPairs, 'other'),
       aLabel: '高钠日', bLabel: '非高钠日',
     }));
     cards.push(compareCard({
       tag: '睡眠', tagClass: 'tag--blue', title: '睡眠 < 7h → 次日晨压',
-      desc: '比较睡眠不足与睡眠充足后的次日晨起收缩压平均值。',
+
       groupA: pick(sleepPairs, 'short'), groupB: pick(sleepPairs, 'ok'),
       aLabel: '睡眠 < 7h', bLabel: '睡眠 ≥ 7h',
     }));
     cards.push(compareCard({
       tag: '运动', tagClass: 'tag--green', title: '慢跑日 → 次日晨压',
-      desc: '比较慢跑 20 分钟以上的日子与没有慢跑的日子。',
+
       groupA: pick(runPairs, 'run'), groupB: pick(runPairs, 'none'),
       aLabel: '慢跑日', bLabel: '非慢跑日',
     }));
     cards.push(compareCard({
       tag: '咖啡', tagClass: 'tag--sand', title: '咖啡 14 点后 → 睡眠与晨压',
-      desc: '比较 14 点后喝咖啡与 14 点前喝咖啡的当晚睡眠和次日晨压。',
+
       groupA: pick(coffeePairs, 'late'), groupB: pick(coffeePairs, 'early'),
       aLabel: '14 点后', bLabel: '14 点前',
       extra: coffeeExtra,
@@ -2344,7 +2309,7 @@
             const meta = recordIcon(row.type);
             return `
               <div class="record-row">
-                <span class="record-ico" style="${themeStyle(meta.theme)}">${icon(meta.icon)}</span>
+                <span class="record-ico">${icon(meta.icon)}</span>
                 <div class="record-main">
                   <b>${esc(row.title)}${row.time ? `<span class="muted" style="font-weight:400"> · ${esc(row.time)}</span>` : ''}</b>
                   <small>${esc(row.detail)}</small>
@@ -2410,14 +2375,34 @@
     saveState();
   };
 
+  const openFoodLibrarySheet = () => {
+    openSheet({
+      title: '常吃食物库',
+      sub: `${FOODS.length} 项预设 · 钠 / 钾用于趋势估算`,
+      body: `
+        <div class="food-list">
+          ${FOODS.map((food) => `
+            <div class="food-row">
+              <div class="food-row-main">
+                <b>${esc(food.name)}</b>
+                <small>${esc(food.serving)} · ${food.kcal} kcal</small>
+              </div>
+              <div class="food-row-tags">
+                <span class="food-tag sodium-${food.sodium}">${SODIUM_LABEL[food.sodium]}钠</span>
+                <span class="food-tag ${food.potassium === 'high' ? 'potassium-high' : ''}">${POTASSIUM_LABEL[food.potassium]}</span>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="hint">${icon('info')}<span>热量和钠 / 钾为估算值，只用于观察趋势，不作精确营养计算。</span></div>`,
+    });
+  };
+
   /* ------------------------------------------------------------------ *
    * settings
    * ------------------------------------------------------------------ */
 
   const renderSettings = () => {
     const s = state.settings;
-    const foodChips = FOODS.map((food) =>
-      `<span class="food-mini ${food.sodium === 'high' ? 'high' : ''}">${esc(food.name)}</span>`).join('');
 
     $('#settings-body').innerHTML = `
       <section class="settings-group">
@@ -2443,28 +2428,28 @@
       <section class="settings-group">
         <div class="group-title">提醒</div>
         <div class="setting-row">
-          <div class="setting-label"><b>晨起血压提醒</b><small>起床排尿后测量</small></div>
+          <div class="setting-label"><b>晨起血压</b><small>起床排尿后测量</small></div>
           <input class="time-input" type="time" data-setting="morningReminder" value="${esc(s.morningReminder)}" aria-label="晨起血压提醒时间" />
         </div>
         <div class="setting-row">
-          <div class="setting-label"><b>睡前血压提醒</b><small>坐位休息 5 分钟后测</small></div>
+          <div class="setting-label"><b>睡前血压</b><small>坐位休息 5 分钟后测</small></div>
           <input class="time-input" type="time" data-setting="nightReminder" value="${esc(s.nightReminder)}" aria-label="睡前血压提醒时间" />
         </div>
         <button class="setting-row setting-row--button" type="button" data-action="toggle-meds" aria-pressed="${s.medsEnabled}">
-          <div class="setting-label"><b>用药记录</b><small>默认关闭，未服药也保留入口</small></div>
+          <div class="setting-label"><b>用药记录</b><small>默认关闭，保留入口</small></div>
           <span class="switch" aria-hidden="true" aria-checked="${s.medsEnabled}"></span>
         </button>
-        <div class="setting-row">
-          <div class="setting-label"><b>酒精模块</b><small>不饮酒，保持隐藏</small></div>
-          <span class="soft-tag">已隐藏</span>
-        </div>
       </section>
 
       <section class="settings-group">
-        <div class="group-title">数据</div>
+        <div class="group-title">数据与备份</div>
         <button class="setting-row setting-row--button" type="button" data-action="records">
           <div class="setting-label"><b>记录明细</b><small>查看、修改或删除</small></div>
           <span class="setting-value">${recordsCount()} 条 ${icon('chevron')}</span>
+        </button>
+        <button class="setting-row setting-row--button" type="button" data-action="food-library">
+          <div class="setting-label"><b>常吃食物库</b><small>钠 / 钾标签与热量估算</small></div>
+          <span class="setting-value">${FOODS.length} 项 ${icon('chevron')}</span>
         </button>
         <button class="setting-row setting-row--button" type="button" data-action="export-csv">
           <div class="setting-label"><b>导出 CSV</b><small>可用表格软件打开</small></div>
@@ -2478,40 +2463,16 @@
           <div class="setting-label"><b>导入恢复</b><small>选择之前导出的 JSON 文件</small></div>
           <span class="setting-value">${icon('upload')}</span>
         </button>
-        <button class="setting-row setting-row--button" type="button" data-action="load-demo">
-          <div class="setting-label"><b>载入示例数据</b><small>${state.demo ? '当前正在查看示例数据' : '覆盖当前记录，用于预览'}</small></div>
-          <span class="setting-value">${state.demo ? '使用中' : '载入'}</span>
-        </button>
         <button class="setting-row setting-row--button setting-row--danger" type="button" data-action="clear">
           <div class="setting-label"><b>清空数据</b><small>删除本机全部记录，无法撤销</small></div>
           <span class="setting-value">${icon('trash')}</span>
         </button>
       </section>
 
-      <section class="settings-group">
-        <div class="group-title">常吃食物库</div>
-        <div class="setting-row">
-          <div class="setting-label"><b>预设食物</b><small>${FOODS.length} 项 · 钠 / 钾标签用于趋势估算</small></div>
-          <span class="soft-tag">内置</span>
-        </div>
-        <div class="food-mini-list">${foodChips}</div>
-      </section>
-
-      <section class="settings-group">
-        <div class="group-title">关于</div>
-        <div class="setting-row">
-          <div class="setting-label"><b>数据存储</b><small>仅保存在本机浏览器，不上传云端</small></div>
-          <span class="setting-value">本机</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-label"><b>版本</b><small>PressLight · 轻压记</small></div>
-          <span class="setting-value">v0.1</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-label"><b>提醒</b><small>本网页版不会主动推送通知，仅保存提醒时间</small></div>
-          <span class="setting-value">网页版</span>
-        </div>
-      </section>`;
+      <div class="settings-foot">
+        <button class="text-link" type="button" data-action="load-demo">载入示例数据预览</button>
+        <p>数据只保存在本机浏览器，换机前记得导出备份。<br/>网页版不会主动推送提醒，提醒时间仅作保存。</p>
+      </div>`;
   };
 
   /* ------------------------------------------------------------------ *
@@ -2677,6 +2638,7 @@
 
   const handleAction = async (action) => {
     if (action === 'records') return openRecordsSheet();
+    if (action === 'food-library') return openFoodLibrarySheet();
     if (action === 'export-csv') return exportCSV();
     if (action === 'export-json') return exportJSON();
     if (action === 'import-json') return importJSON();
