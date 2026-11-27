@@ -78,7 +78,7 @@
         <header class="page-head">
           <div class="page-kicker">TRENDS</div>
           <h1>趋势</h1>
-          <p>看周均，不看单日。样本不足时先继续记录。</p>
+          <p>一天一行，逐日回看。哪天漏了，一眼就能看到。</p>
         </header>
         <div class="toolbar">
           <div class="seg seg--range" id="range-seg" role="group" aria-label="时间范围">
@@ -105,12 +105,12 @@
         <section class="card report-card">
           <div class="card-heading">
             <div>
-              <h2>本周报告</h2>
+              <h2>每日记录</h2>
               <p class="muted" id="report-range">—</p>
             </div>
-            <span class="soft-tag">自动汇总</span>
+            <span class="soft-tag" id="report-tag">—</span>
           </div>
-          <div class="report-grid" id="report-grid"></div>
+          <div class="day-list" id="day-list"></div>
         </section>
         <p class="disclaimer">估算值仅用于观察趋势，不作精确营养或医疗计算。</p>
       </section>

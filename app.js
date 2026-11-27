@@ -1826,7 +1826,7 @@
     }
 
     renderTrendStats();
-    renderReport();
+    renderDayList();
     if ($('#page-trends').classList.contains('is-active')) requestAnimationFrame(drawChart);
   };
 
@@ -2046,34 +2046,99 @@
     });
   };
 
-  const renderReport = () => {
-    const keys = lastKeys(7);
-    const mornings = keys.map((key) => latestBP(key, 'morning')).filter(Boolean);
-    const nights = keys.map((key) => latestBP(key, 'night')).filter(Boolean);
-    const avgM = avgPair(mornings);
-    const avgN = avgPair(nights);
-    const targetDays = mornings.filter((r) =>
-      r.systolic < state.settings.targetSys && r.diastolic < state.settings.targetDia).length;
+  const SODIUM_TEXT = { high: '钠偏高', mid: '钠中等', low: '钠清淡' };
 
-    const summaries = keys.map((key) => daySummary(key));
-    const highSodiumDays = summaries.filter((s) => s.hasMeals && s.sodiumLevel === 'high').length;
-    const shortSleepDays = summaries.filter((s) => s.sleep && s.sleepMins < 420).length;
-    const runMinutes = summaries.reduce((sum, s) => sum + s.exerciseMin, 0);
-    const lateCoffee = state.caffeine.filter((r) =>
-      keys.includes(r.date) && (timeToMinutes(r.time) ?? 0) >= 14 * 60).length;
-    const weightRecords = keys.map((key) => weightFor(key)).filter(Boolean);
-    const weightAvg = mean(weightRecords.map((r) => r.weightKg));
+  const waistFor = (date) => {
+    const list = state.weight.filter((r) => r.date === date && r.waistCm != null);
+    return list.length ? list[list.length - 1].waistCm : null;
+  };
 
-    $('#report-range').textContent = `${dotDate(keys[0])} – ${dotDate(keys[6])}`;
-    $('#report-grid').innerHTML = `
-      <div class="report-item"><small>晨压周均</small><b>${avgM ? `${avgM.sys}/${avgM.dia}` : '—'}<em>mmHg</em></b></div>
-      <div class="report-item"><small>晚压周均</small><b>${avgN ? `${avgN.sys}/${avgN.dia}` : '—'}<em>mmHg</em></b></div>
-      <div class="report-item"><small>血压达标</small><b>${mornings.length ? `${targetDays}` : '—'}<em> / ${mornings.length} 天</em></b></div>
-      <div class="report-item"><small>高钠天数</small><b>${highSodiumDays}<em>天</em></b></div>
-      <div class="report-item"><small>睡眠 &lt; 7h</small><b>${shortSleepDays}<em>天</em></b></div>
-      <div class="report-item"><small>慢跑总时长</small><b>${Math.round(runMinutes)}<em>分钟</em></b></div>
-      <div class="report-item"><small>咖啡 14 点后</small><b>${lateCoffee}<em>次</em></b></div>
-      <div class="report-item"><small>体重周均</small><b>${weightAvg != null ? weightAvg.toFixed(1) : '—'}<em>kg</em></b></div>`;
+  const dayRowHTML = (key) => {
+    const summary = daySummary(key);
+    const isToday = key === TODAY();
+    const dateCell = `
+      <div class="day-date">
+        <b>${dotDate(key)}</b>
+        <small>${isToday ? '今天' : weekday(key)}</small>
+      </div>`;
+
+    if (!summary.hasData) {
+      return `
+        <div class="day-row is-empty${isToday ? ' is-today' : ''}">
+          ${dateCell}
+          <div class="day-body"><span class="day-none">这一天还没有记录</span></div>
+        </div>`;
+    }
+
+    const bpPills = [];
+    if (summary.bpMorning) {
+      bpPills.push(`<span class="bp-pill is-am">晨 ${summary.bpMorning.systolic}/${summary.bpMorning.diastolic}</span>`);
+    }
+    if (summary.bpNight) {
+      bpPills.push(`<span class="bp-pill is-pm">晚 ${summary.bpNight.systolic}/${summary.bpNight.diastolic}</span>`);
+    }
+    if (!bpPills.length) bpPills.push('<span class="day-none">未测血压</span>');
+
+    const overTarget = [summary.bpMorning, summary.bpNight]
+      .filter(Boolean)
+      .some((r) => r.systolic >= state.settings.targetSys || r.diastolic >= state.settings.targetDia);
+
+    const tags = [];
+    if (summary.hasMeals && summary.sodiumLevel) tags.push(SODIUM_TEXT[summary.sodiumLevel]);
+    if (summary.sleep && summary.sleepMins) {
+      tags.push(`睡 ${formatDuration(summary.sleepMins).short}`);
+    }
+    if (summary.exerciseMin > 0) tags.push(`慢跑 ${Math.round(summary.exerciseMin)} 分`);
+    if (summary.weight?.weightKg != null) tags.push(`${summary.weight.weightKg.toFixed(1)} kg`);
+    const waist = waistFor(key);
+    if (waist != null) tags.push(`腰 ${waist.toFixed(1)}`);
+    if (summary.water && summary.water.totalMl > 0) tags.push(`水 ${fmt1(summary.water.totalMl / 1000)}L`);
+    if (summary.coffeeCups > 0) tags.push(`咖啡 ${summary.coffeeCups} 杯`);
+
+    return `
+      <div class="day-row${isToday ? ' is-today' : ''}">
+        ${dateCell}
+        <div class="day-body">
+          <div class="day-bp">
+            ${bpPills.join('')}
+            ${overTarget ? '<span class="day-flag">偏高</span>' : ''}
+          </div>
+          ${tags.length ? `<div class="day-tags">${tags.map((t) => `<span>${t}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>`;
+  };
+
+  const gapRowHTML = (keys) => {
+    const first = keys[0];
+    const last = keys[keys.length - 1];
+    const text = `${dotDate(first)} – ${dotDate(last)} · 连续 ${keys.length} 天没有记录`;
+    return `<div class="day-gap">${text}</div>`;
+  };
+
+  const renderDayList = () => {
+    const keys = lastKeys(trendRange);
+    const filled = keys.filter((key) => daySummary(key).hasData).length;
+
+    const blocks = [];
+    let gap = [];
+    keys.forEach((key) => {
+      if (daySummary(key).hasData) {
+        if (gap.length) {
+          blocks.push(gap.length === 1 ? dayRowHTML(gap[0]) : gapRowHTML(gap));
+          gap = [];
+        }
+        blocks.push(dayRowHTML(key));
+      } else {
+        gap.push(key);
+      }
+    });
+    if (gap.length) {
+      blocks.push(gap.length === 1 ? dayRowHTML(gap[0]) : gapRowHTML(gap));
+    }
+
+    $('#report-range').textContent = `${dotDate(keys[0])} – ${dotDate(keys[keys.length - 1])}`;
+    $('#report-tag').textContent = `${filled}/${keys.length} 天有记录`;
+    $('#day-list').innerHTML = blocks.reverse().join('');
   };
 
   /* ------------------------------------------------------------------ *
